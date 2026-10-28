@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ワードラダー 単語橋渡し パズル</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<div class="max-w-lg mx-auto p-4">
+  <h1 class="text-2xl font-bold text-gray-800 mb-1">ワードラダー</h1>
+  <p class="text-sm text-gray-500 mb-4">1文字ずつ変えてスタート→ゴールに到達してください</p>
+
+  <!-- 難易度選択 -->
+  <div id="menu-screen">
+    <div class="bg-white rounded-xl shadow-md p-5 mb-4">
+      <h2 class="text-sm font-semibold text-gray-500 uppercase mb-3">難易度</h2>
+      <div class="grid grid-cols-3 gap-2 mb-4">
+        <label class="text-center">
+          <input type="radio" name="difficulty" value="0" checked class="sr-only peer">
+          <div class="peer-checked:bg-blue-500 peer-checked:text-white bg-gray-100 text-gray-600 rounded-lg p-3 text-sm font-medium cursor-pointer hover:bg-gray-200 transition-colors text-center" aria-label="初級">初級</div>
+        </label>
+        <label class="text-center">
+          <input type="radio" name="difficulty" value="1" class="sr-only peer">
+          <div class="peer-checked:bg-blue-500 peer-checked:text-white bg-gray-100 text-gray-600 rounded-lg p-3 text-sm font-medium cursor-pointer hover:bg-gray-200 transition-colors" aria-label="中級">中級</div>
+        </label>
+        <label class="text-center">
+          <input type="radio" name="difficulty" value="2" class="sr-only peer">
+          <div class="peer-checked:bg-blue-500 peer-checked:text-white bg-gray-100 text-gray-600 rounded-lg p-3 text-sm font-medium cursor-pointer hover:bg-gray-200 transition-colors" aria-label="上級">上級</div>
+        </label>
+      </div>
+      <button onclick="startGame()" aria-label="ゲーム開始"
+        class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold text-lg hover:bg-blue-700 transition-colors">
+        ゲーム開始
+      </button>
+    </div>
+  </div>
+
+  <!-- ゲーム画面 -->
+  <div id="game-screen" class="hidden">
+    <!-- スタート・ゴール表示 -->
+    <div class="bg-white rounded-xl shadow-md p-5 mb-4">
+      <div class="flex justify-between items-center mb-1">
+        <div class="text-center flex-1">
+          <div class="text-xs text-gray-400 mb-1">スタート</div>
+          <div id="start-word" class="text-2xl font-bold text-blue-600 font-mono tracking-widest"></div>
+        </div>
+        <div class="text-2xl text-gray-300 mx-4">→</div>
+        <div class="text-center flex-1">
+          <div class="text-xs text-gray-400 mb-1">ゴール</div>
+          <div id="goal-word" class="text-2xl font-bold text-green-600 font-mono tracking-widest"></div>
+        </div>
+      </div>
+      <div class="flex justify-between text-xs text-gray-400 mt-3">
+        <span>ステップ: <span id="step-count" class="font-bold text-gray-600">0</span></span>
+        <span>最短: <span id="min-steps" class="font-bold text-gray-600">--</span>ステップ</span>
+      </div>
+    </div>
+
+    <!-- 入力 -->
+    <div class="bg-white rounded-xl shadow-md p-4 mb-4">
+      <div class="flex gap-2 mb-2">
+        <input type="text" id="word-input" maxlength="4"
+          class="flex-1 border-2 border-gray-300 rounded-lg px-3 py-2 font-mono font-bold text-xl uppercase tracking-widest text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+          placeholder="WORD" aria-label="単語入力">
+        <button onclick="submitStep()" aria-label="送信"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">送信</button>
+      </div>
+      <div id="step-message" class="text-sm min-h-[20px] text-center"></div>
+    </div>
+
+    <!-- ヒント・コントロール -->
+    <div class="flex gap-2 mb-4">
+      <button onclick="getHint()" aria-label="ヒント"
+        class="flex-1 py-2 bg-yellow-100 text-yellow-700 rounded-lg font-medium hover:bg-yellow-200 text-sm">
+        💡 ヒント
+      </button>
+      <button onclick="undoStep()" aria-label="1手戻す"
+        class="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 text-sm">
+        ↩ 1手戻す
+      </button>
+      <button onclick="resetToMenu()" aria-label="メニューに戻る"
+        class="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 text-sm">
+        🔄 リセット
+      </button>
+    </div>
+
+    <!-- ヒント表示 -->
+    <div id="hint-area" class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-sm text-yellow-800">
+    </div>
+
+    <!-- パスリスト -->
+    <div class="bg-white rounded-xl shadow-md p-4">
+      <h2 class="text-sm font-semibold text-gray-500 uppercase mb-3">現在のパス</h2>
+      <div id="path-list" class="space-y-2"></div>
+    </div>
+
+    <!-- クリア表示 -->
+    <div id="clear-area" class="hidden bg-white rounded-xl shadow-md p-5 text-center mt-4">
+      <div class="text-4xl mb-2">🎉</div>
+      <div class="text-xl font-bold text-green-600 mb-1">クリア！</div>
+      <div id="clear-detail" class="text-sm text-gray-500 mb-3"></div>
+      <button onclick="startGame()" aria-label="次の問題"
+        class="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">
+        次の問題
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// 4文字単語辞書（250語以上）
+const DICT4 = new Set([
+  'able','acid','aged','also','arch','area','aunt','back','bale','ball','band','bang',
+  'bank','bare','barn','base','bath','bead','beak','beam','bean','bear','beat','beef',
+  'bell','belt','bend','best','bike','bill','bird','bite','blue','boat','bold','bolt',
+  'bond','bone','book','boot','bore','born','bowl','bull','burn','bush','cake','calf',
+  'call','calm','came','camp','cane','cape','card','care','cart','case','cash','cast',
+  'cave','cell','chin','chip','club','clue','coal','coat','code','coil','cold','colt',
+  'come','cook','cool','cope','copy','cord','core','corn','cost','cove','crab','crew',
+  'crop','crow','cube','curb','cure','curl','damp','dark','dart','dash','date','dawn',
+  'dead','deaf','deal','dean','deck','deed','deep','dent','desk','dill','dime','dine',
+  'dirt','dish','disk','doll','dome','done','door','dope','dove','drag','draw','drip',
+  'drop','drum','duck','dune','dusk','dust','each','earl','earn','ease','east','edge',
+  'even','ever','face','fail','fair','fall','fame','farm','fast','fate','fawn','feed',
+  'feel','fell','felt','fern','file','fill','film','find','fine','firm','fish','fist',
+  'five','flag','flat','flaw','flop','flow','foam','foil','fold','fond','food','fool',
+  'ford','fore','fork','form','fort','foul','four','fowl','free','fuel','full','fume',
+  'fund','fuse','gale','game','gang','gaze','gear','gene','gill','give','glad','glow',
+  'glue','goat','gold','golf','gone','good','gore','gown','grab','gray','grin','grip',
+  'grow','gust','half','hall','halt','hand','hang','hard','hare','harp','hate','have',
+  'hawk','head','heal','heap','heat','heel','helm','help','herb','herd','hide','high',
+  'hill','hint','hire','hold','hole','home','hook','hope','horn','host','hour','huge',
+  'hull','hump','hung','hunt','hurt','idea','idle','iron','jade','jail','jolt','jump',
+  'just','keen','keep','kick','kind','king','knob','knot','know','lace','lack','lake',
+  'lamb','lamp','lane','lash','lead','leaf','leak','lean','leap','left','lend','less',
+  'lick','life','lift','lime','line','link','lion','list','loft','lone','long','look',
+  'loom','loop','lore','lose','loss','lost','loud','love','luck','lung','lure','lust',
+  'mace','made','maid','mail','main','make','male','mall','malt','mane','mare','mark',
+  'mash','mask','mast','mate','meal','mean','meat','meet','melt','mere','mesh','mild',
+  'mile','milk','mill','mind','mine','mint','mist','moat','mock','mode','mold','monk',
+  'moon','more','moss','most','moth','much','mule','nail','name','navy','nest','nice',
+  'nine','node','none','norm','nose','note','oath','once','open','over','oven','pack',
+  'page','pail','pain','pale','palm','pane','part','pass','past','path','pave','peak',
+  'peel','pelt','pest','pick','pier','pile','pill','pine','pipe','plan','plop','plot',
+  'plow','plum','poem','poet','pole','poll','pond','pore','port','post','pour','prey',
+  'prod','prop','pull','pump','pure','push','race','rack','rage','rail','rain','rake',
+  'ramp','rank','rate','read','real','reap','reel','rein','rely','rend','rent','rest',
+  'rice','rich','ride','ring','rise','risk','roam','roar','robe','rock','rode','role',
+  'roll','roof','room','root','rope','rose','ruin','rule','rung','rush','rust','safe',
+  'sage','sail','sake','sale','salt','sand','sane','sang','sank','save','seal','seam',
+  'seed','seek','self','sell','send','sent','shed','shin','ship','shoe','shop','shot',
+  'show','sick','sigh','silk','sill','silt','sing','sink','slab','slam','slap','slat',
+  'slip','slot','slow','slug','snap','snow','soak','soap','soar','sock','soil','sole',
+  'some','song','sore','sort','soul','soup','sour','span','spar','spin','spot','spur',
+  'star','stay','stem','step','stew','stir','stop','stub','suck','suit','sulk','sung',
+  'sunk','surf','swan','swap','swam','swim','tale','tall','tame','task','team','tear',
+  'tell','tend','tent','term','test','tide','tile','till','time','tire','toad','toll',
+  'tomb','tone','tool','tore','torn','toss','tour','town','tree','trim','trip','trot',
+  'tuck','tune','turf','turn','tusk','twin','twig','type','urge','used','vain','vane',
+  'veil','vein','vest','view','vine','void','volt','wade','wage','wail','wake','wane',
+  'ward','warm','wart','wary','wave','weak','weal','wean','weed','well','welt','went',
+  'wept','west','wide','wife','wild','wilt','wine','wing','wink','wipe','wire','wise',
+  'wish','woke','wolf','wood','wool','word','wore','work','worm','worn','wrap','wren',
+  'yawn','year','yell','yoke','zeal','zero','zinc','zone','zoom','bard','born','boon',
+  'born','boss','burr','coal','cool','darn','done','door','dose','dote','down','drag',
+  'dray','drub','dull','dump','dung','dupe','dwell','each','earl','ease','emit','epic',
+  'even','ever','exam','fond','font','fore','form','fort','foul','four','fowl','free',
+  'hand','hang','hard','harm','harp','hate','have','head','heal','heap','heat','heel',
+  'helm','help','herb','herd','hide','high','hill','hint','hire','hold','hole','home',
+  'lame','land','lane','lash','late','laud','lave','lawn','lazy','lean','leap','left',
+  'lend','less','lick','life','lift','lime','line','link','lion','list','loft','lone',
+  'long','look','loom','loop','lore','lose','loss','lost','loud','love','luck','lung',
+  'pale','pall','pave','peak','peel','pelt','pest','pick','pile','pill','pine','pipe',
+  'plan','plop','plot','plow','plum','poem','poet','pole','poll','pond','pore','port',
+  'post','pour','prey','prod','prop','pull','pump','pure','push','race','rack','rage',
+  'rail','rain','rake','ramp','rank','rate','read','real','reap','reel','rein','rely',
+  'rend','rent','rest','rice','rich','ride','ring','rise','risk','roam','roar','robe',
+  'rock','rode','role','roll','roof','room','root','rope','rose','ruin','rule','rung',
+  'rush','rust','safe','sage','sail','sake','sale','salt','sand','sane','sang','sank'
+]);
+
+// プリセット問題（難易度別）
+const PRESETS = [
+  // 初級（3-4ステップ）
+  [
+    { start: 'cold', goal: 'warm', minSteps: 4 },
+    { start: 'love', goal: 'hate', minSteps: 3 },
+    { start: 'make', goal: 'take', minSteps: 1 },
+    { start: 'mine', goal: 'wine', minSteps: 1 },
+    { start: 'band', goal: 'land', minSteps: 1 },
+    { start: 'cake', goal: 'lake', minSteps: 1 },
+    { start: 'bold', goal: 'fold', minSteps: 1 },
+    { start: 'tall', goal: 'ball', minSteps: 1 },
+    { start: 'good', goal: 'food', minSteps: 1 },
+    { start: 'ring', goal: 'sing', minSteps: 1 },
+  ],
+  // 中級
+  [
+    { start: 'lead', goal: 'gold', minSteps: 4 },
+    { start: 'head', goal: 'tail', minSteps: 5 },
+    { start: 'four', goal: 'five', minSteps: 4 },
+    { start: 'boot', goal: 'shoe', minSteps: 4 },
+    { start: 'milk', goal: 'wine', minSteps: 3 },
+    { start: 'hand', goal: 'foot', minSteps: 4 },
+    { start: 'more', goal: 'less', minSteps: 4 },
+    { start: 'sale', goal: 'cave', minSteps: 3 },
+    { start: 'lone', goal: 'bone', minSteps: 1 },
+    { start: 'dark', goal: 'bark', minSteps: 1 },
+  ],
+  // 上級
+  [
+    { start: 'cold', goal: 'heat', minSteps: 5 },
+    { start: 'work', goal: 'rest', minSteps: 6 },
+    { start: 'word', goal: 'book', minSteps: 5 },
+    { start: 'fast', goal: 'slow', minSteps: 5 },
+    { start: 'hard', goal: 'soft', minSteps: 5 },
+    { start: 'town', goal: 'farm', minSteps: 5 },
+    { start: 'bold', goal: 'mild', minSteps: 4 },
+    { start: 'wine', goal: 'beer', minSteps: 4 },
+    { start: 'cost', goal: 'free', minSteps: 4 },
+    { start: 'king', goal: 'poor', minSteps: 5 },
+  ]
+];
+
+let startWord = '', goalWord = '';
+let path = [];
+let currentDifficulty = 0;
+let minSteps = 0;
+let puzzleIdx = 0;
+
+function startGame() {
+  currentDifficulty = parseInt(document.querySelector('input[name="difficulty"]:checked').value);
+  const presets = PRESETS[currentDifficulty];
+  puzzleIdx = Math.floor(Math.random() * presets.length);
+  const puzzle = presets[puzzleIdx];
+  startWord = puzzle.start;
+  goalWord = puzzle.goal;
+  minSteps = puzzle.minSteps;
+  path = [startWord];
+
+  document.getElementById('menu-screen').classList.add('hidden');
+  document.getElementById('game-screen').classList.remove('hidden');
+  document.getElementById('clear-area').classList.add('hidden');
+  document.getElementById('hint-area').classList.add('hidden');
+  document.getElementById('word-input').value = '';
+  document.getElementById('word-input').disabled = false;
+
+  document.getElementById('start-word').textContent = startWord.toUpperCase();
+  document.getElementById('goal-word').textContent = goalWord.toUpperCase();
+  document.getElementById('min-steps').textContent = minSteps;
+
+  updatePathDisplay();
+  updateStepCount();
+}
+
+function submitStep() {
+  const input = document.getElementById('word-input').value.toLowerCase().trim();
+  document.getElementById('word-input').value = '';
+  const msgEl = document.getElementById('step-message');
+
+  if (input.length !== 4) {
+    showStepMsg('4文字で入力してください', 'text-orange-500'); return;
+  }
+  const current = path[path.length - 1];
+  let diff = 0;
+  for (let i = 0; i < 4; i++) { if (input[i] !== current[i]) diff++; }
+  if (diff !== 1) {
+    showStepMsg('直前の単語と1文字だけ違う単語を入力してください', 'text-red-500'); return;
+  }
+  if (!DICT4.has(input)) {
+    showStepMsg('辞書にありません: ' + input.toUpperCase(), 'text-red-500'); return;
+  }
+  if (path.includes(input)) {
+    showStepMsg('すでに使った単語です', 'text-orange-500'); return;
+  }
+
+  path.push(input);
+  updatePathDisplay();
+  updateStepCount();
+  showStepMsg('');
+
+  if (input === goalWord) {
+    showClear();
+  }
+}
+
+function showStepMsg(msg, cls = '') {
+  const el = document.getElementById('step-message');
+  el.textContent = msg;
+  el.className = 'text-sm min-h-[20px] text-center ' + cls;
+}
+
+function undoStep() {
+  if (path.length <= 1) return;
+  path.pop();
+  updatePathDisplay();
+  updateStepCount();
+  showStepMsg('');
+}
+
+function getHint() {
+  const current = path[path.length - 1];
+  // BFSで次の1手を提示
+  const visited = new Set(path);
+  const queue = [[current, []]];
+  const vis = new Set([current]);
+
+  while (queue.length > 0) {
+    const [word, pathSoFar] = queue.shift();
+    if (word === goalWord) {
+      if (pathSoFar.length > 0) {
+        const nextWord = pathSoFar[0];
+        const hintEl = document.getElementById('hint-area');
+        hintEl.classList.remove('hidden');
+        hintEl.textContent = 'ヒント: 次は「' + nextWord.toUpperCase() + '」はどうですか？';
+        return;
+      }
+    }
+    const neighbors = getNeighbors(word);
+    for (const n of neighbors) {
+      if (!vis.has(n) && !visited.has(n)) {
+        vis.add(n);
+        queue.push([n, [...pathSoFar, n]]);
+      }
+    }
+  }
+
+  const hintEl = document.getElementById('hint-area');
+  hintEl.classList.remove('hidden');
+  hintEl.textContent = 'ヒント: このパスからゴールへの経路が見つかりません。1手戻してみてください。';
+}
+
+function getNeighbors(word) {
+  const result = [];
+  for (let i = 0; i < 4; i++) {
+    for (let c = 97; c <= 122; c++) {
+      const ch = String.fromCharCode(c);
+      if (ch !== word[i]) {
+        const candidate = word.slice(0,i) + ch + word.slice(i+1);
+        if (DICT4.has(candidate)) result.push(candidate);
+      }
+    }
+  }
+  return result;
+}
+
+function updatePathDisplay() {
+  const container = document.getElementById('path-list');
+  container.innerHTML = '';
+  path.forEach((word, i) => {
+    const el = document.createElement('div');
+    el.className = 'flex items-center gap-3';
+    const num = document.createElement('span');
+    num.className = 'text-xs text-gray-400 w-6 text-right';
+    num.textContent = i + 1;
+    const wordEl = document.createElement('span');
+    wordEl.className = 'font-mono font-bold text-lg tracking-widest ' +
+      (word === goalWord ? 'text-green-600' : word === startWord ? 'text-blue-600' : 'text-gray-800');
+
+    // 前の単語との差分ハイライト
+    if (i > 0) {
+      const prev = path[i-1];
+      wordEl.innerHTML = '';
+      for (let j = 0; j < 4; j++) {
+        const span = document.createElement('span');
+        span.textContent = word[j].toUpperCase();
+        if (word[j] !== prev[j]) {
+          span.className = 'text-orange-500 underline';
+        }
+        wordEl.appendChild(span);
+      }
+    } else {
+      wordEl.textContent = word.toUpperCase();
+    }
+
+    el.appendChild(num);
+    el.appendChild(wordEl);
+    if (i < path.length - 1) {
+      const arrow = document.createElement('span');
+      arrow.className = 'text-gray-300 text-xs';
+      arrow.textContent = '↓';
+    }
+    container.appendChild(el);
+  });
+}
+
+function updateStepCount() {
+  document.getElementById('step-count').textContent = path.length - 1;
+}
+
+function showClear() {
+  document.getElementById('clear-area').classList.remove('hidden');
+  document.getElementById('word-input').disabled = true;
+  const steps = path.length - 1;
+  const optimal = steps === minSteps ? '最短！' : '最短は' + minSteps + 'ステップ';
+  document.getElementById('clear-detail').textContent = steps + 'ステップでクリア（' + optimal + '）';
+}
+
+function resetToMenu() {
+  document.getElementById('menu-screen').classList.remove('hidden');
+  document.getElementById('game-screen').classList.add('hidden');
+}
+
+document.getElementById('word-input') && document.getElementById('word-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitStep();
+});
+</script>
+</body>
+</html>
